@@ -1,65 +1,236 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useCallback } from 'react';
+import Canvas from '@/components/Canvas';
+import Controls from '@/components/Controls';
+import ImageUpload from '@/components/ImageUpload';
+import InstructionExport from '@/components/InstructionExport';
+import { loadImage, imageToGrayscale } from '@/lib/imageProcessing';
+import { generateStringArt, type StringArtConfig, type StringArtResult } from '@/lib/stringArt';
 
 export default function Home() {
+  const [config, setConfig] = useState<StringArtConfig>({
+    pegsPerSide: 10,
+    iterations: 500,
+    lineOpacity: 0.28,
+    imageSize: 800
+  });
+  
+  const [sourceImage, setSourceImage] = useState<ImageData | null>(null);
+  const [originalImage, setOriginalImage] = useState<HTMLImageElement | null>(null);
+  const [result, setResult] = useState<StringArtResult | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [invertColors, setInvertColors] = useState(false);
+  
+  const handleImageSelect = useCallback(async (file: File) => {
+    try {
+      const img = await loadImage(file);
+      setOriginalImage(img);
+      const imageData = imageToGrayscale(img, config.imageSize, invertColors);
+      setSourceImage(imageData);
+      setResult(null);
+      setProgress(0);
+    } catch (error) {
+      console.error('Error loading image:', error);
+      alert('Failed to load image. Please try another file.');
+    }
+  }, [config.imageSize, invertColors]);
+  
+  // Re-process image when invert toggle changes
+  const handleInvertToggle = useCallback(async (newInvertValue: boolean) => {
+    setInvertColors(newInvertValue);
+    
+    // If we have the original image, re-process it with new invert setting
+    if (originalImage) {
+      try {
+        const imageData = imageToGrayscale(originalImage, config.imageSize, newInvertValue);
+        setSourceImage(imageData);
+        setResult(null);
+        setProgress(0);
+      } catch (error) {
+        console.error('Error re-processing image:', error);
+      }
+    }
+  }, [originalImage, config.imageSize]);
+  
+  const handleGenerate = useCallback(async () => {
+    if (!sourceImage) return;
+    
+    setIsGenerating(true);
+    setProgress(0);
+    
+    try {
+      const generatedResult = await generateStringArt(
+        sourceImage,
+        config,
+        (iteration, total) => {
+          setProgress((iteration / total) * 100);
+        }
+      );
+      
+      setResult(generatedResult);
+      setProgress(100);
+    } catch (error) {
+      console.error('Error generating string art:', error);
+      alert('Failed to generate string art. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [sourceImage, config]);
+  
+  const handleReset = useCallback(() => {
+    setSourceImage(null);
+    setOriginalImage(null);
+    setResult(null);
+    setProgress(0);
+  }, []);
+  
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            String Art Generator
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
+          <p className="text-lg text-gray-600">
+            Transform images into beautiful string art patterns
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            Inspired by{' '}
             <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              href="https://artof01.com/vrellis/works/knit.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+              Petros Vrellis
+            </a>
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+        
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Controls */}
+          <div className="space-y-6">
+            <Controls
+              config={config}
+              onConfigChange={setConfig}
+              onGenerate={handleGenerate}
+              onReset={handleReset}
+              isGenerating={isGenerating}
+              hasImage={sourceImage !== null}
+              invertColors={invertColors}
+              onInvertChange={handleInvertToggle}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            
+            {result && <InstructionExport result={result} />}
+          </div>
+          
+          {/* Right Column - Canvas Area */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Image Upload */}
+            {!sourceImage && !result && (
+              <ImageUpload 
+                onImageSelect={handleImageSelect}
+                disabled={isGenerating}
+              />
+            )}
+            
+            {/* Canvas Display */}
+            {(sourceImage || result) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {sourceImage && (
+                  <Canvas
+                    imageData={sourceImage}
+                    title="Source Image"
+                    className="w-full"
+                  />
+                )}
+                
+                {result && (
+                  <div className="space-y-2">
+                    <Canvas
+                      result={result}
+                      progress={progress}
+                      title="String Art Result"
+                      className="w-full"
+                    />
+                    {isGenerating && (
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div
+                          className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                          style={{ width: `${progress}%` }}
+            />
+                      </div>
+                    )}
+                    {isGenerating && (
+                      <p className="text-sm text-center text-gray-600">
+                        Generating... {Math.round(progress)}%
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Instructions */}
+            {!sourceImage && !result && (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">How it works</h2>
+                <ol className="list-decimal list-inside space-y-2 text-gray-700">
+                  <li>Upload an image (portraits work best)</li>
+                  <li>Adjust the parameters (pegs, iterations, opacity)</li>
+                  <li>Click "Generate String Art" and watch the algorithm work</li>
+                  <li>Download the peg connection instructions to recreate physically</li>
+                </ol>
+                
+                <div className="mt-6 p-4 bg-blue-50 rounded-md">
+                  <h3 className="font-semibold text-blue-900 mb-2">Algorithm Details</h3>
+                  <p className="text-sm text-blue-800">
+                    The generator uses a greedy algorithm to find the optimal sequence of 
+                    connections between pegs. Starting from a random peg, it iteratively 
+                    selects the next connection that best matches the darkness in the source 
+                    image, gradually building up the complete picture with a single continuous thread.
+                  </p>
+                </div>
+                
+                <div className="mt-4 p-4 bg-green-50 rounded-md">
+                  <h3 className="font-semibold text-green-900 mb-2">✨ Small Peg Support</h3>
+                  <p className="text-sm text-green-800">
+                    Now supports as few as 4 pegs per side! Perfect for geometric art, 
+                    letters, and symbols. Use the "Minimal" or "Low" presets for quick, 
+                    bold designs that are easy to build physically.
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            {/* Small Peg Count Tip */}
+            {sourceImage && config.pegsPerSide < 15 && !result && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-amber-800">
+                      Small peg count detected ({config.pegsPerSide} pegs/side)
+                    </h3>
+                    <p className="mt-1 text-sm text-amber-700">
+                      Best for: <strong>Letters, geometric shapes, bold designs</strong>. 
+                      Use high-contrast images with simple shapes for best results.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
         </div>
       </main>
-    </div>
   );
 }
