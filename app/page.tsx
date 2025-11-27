@@ -5,6 +5,7 @@ import Canvas from '@/components/Canvas';
 import Controls from '@/components/Controls';
 import ImageUpload from '@/components/ImageUpload';
 import InstructionExport from '@/components/InstructionExport';
+import SampleGallery from '@/components/SampleGallery';
 import { loadImage, imageToGrayscale } from '@/lib/imageProcessing';
 import { generateStringArt, type StringArtConfig, type StringArtResult } from '@/lib/stringArt';
 
@@ -36,6 +37,19 @@ export default function Home() {
       alert('Failed to load image. Please try another file.');
     }
   }, [config.imageSize, invertColors]);
+  
+  const handleSampleSelect = useCallback(async (imagePath: string) => {
+    try {
+      // Load image from path
+      const response = await fetch(imagePath);
+      const blob = await response.blob();
+      const file = new File([blob], imagePath.split('/').pop() || 'sample.png', { type: 'image/png' });
+      await handleImageSelect(file);
+    } catch (error) {
+      console.error('Error loading sample image:', error);
+      alert('Failed to load sample image.');
+    }
+  }, [handleImageSelect]);
   
   // Re-process image when invert toggle changes
   const handleInvertToggle = useCallback(async (newInvertValue: boolean) => {
@@ -130,6 +144,14 @@ export default function Home() {
           
           {/* Right Column - Canvas Area */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Sample Gallery - Show when no image loaded */}
+            {!sourceImage && !result && (
+              <SampleGallery
+                onSampleSelect={handleSampleSelect}
+                disabled={isGenerating}
+              />
+            )}
+            
             {/* Image Upload */}
             {!sourceImage && !result && (
               <ImageUpload 

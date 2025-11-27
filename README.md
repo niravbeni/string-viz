@@ -8,6 +8,7 @@ A web application that transforms images into beautiful string art patterns usin
 
 - **Wide Peg Range**: Support for 4-100 pegs per side (16-400 total)
 - **Optimized for Small Counts**: Perfect for geometric art and letters with minimal pegs
+- **Sample Gallery**: Pre-loaded letter samples (D, E, I, O) for instant testing
 - **Configurable Parameters**: Adjust pegs per side, iterations, and line opacity
 - **Color Inversion**: Toggle to swap black ↔ white for negative images
 - **Time Estimates**: Real-time calculation of generation and physical build time
@@ -60,6 +61,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Usage
 
+1. **Try a Sample**: Click any sample letter (D, E, I, O) to get started instantly, or
 1. **Upload an Image**: Click or drag-and-drop an image (portraits work best)
 2. **Adjust Parameters**:
    - **Pegs Per Side**: Number of pegs on each side of the square (4-100)
